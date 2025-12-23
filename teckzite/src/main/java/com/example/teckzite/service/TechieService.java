@@ -1,45 +1,3 @@
-//package com.example.teckzite.service;
-//
-//
-//import com.example.teckzite.entity.Techie;
-//import com.example.teckzite.repository.TechieRepository;
-//import org.springframework.stereotype.Service;
-//import java.util.List;
-//@Service
-//public class TechieService {
-//    private final TechieRepository repository;
-//    public TechieService(TechieRepository repository) {
-//        this.repository = repository;
-//    }
-//    public Techie registerTechie(Techie techie) {
-//        return repository.save(techie);
-//    }
-//
-//    public List<Techie> getAllTechies() {
-//        return repository.findAll();
-//    }
-//
-//    public Techie getTechieById(Long id) {
-//        return repository.findById(id)
-//                .orElseThrow(() -> new RuntimeException("Techie not found with id: " + id));
-//    }
-//
-//
-//    public List<Techie> getTechiesByCollege(String college) {
-//            List<Techie> techies = repository.findByCollege(college);
-//
-//            if (techies.isEmpty()) {
-//                throw new RuntimeException("No techies found for college: " + college);
-//            }
-//
-//            return techies;
-//        }
-//
-//    public void deleteTechie(Long id) {
-//        repository.deleteById(id);
-//    }
-//}
-//
 package com.example.teckzite.service;
 
 import com.example.teckzite.entity.Techie;
@@ -69,8 +27,6 @@ public class TechieService {
         this.repository = repository;
     }
 
-    // ---------------- CRUD METHODS ----------------
-
     public Techie registerTechie(Techie techie) {
         return repository.save(techie);
     }
@@ -97,14 +53,11 @@ public class TechieService {
         repository.deleteById(id);
     }
 
-    // ---------------- OPENAI ANALYSIS METHOD ----------------
 
     public String analyzeTechie(Long id) {
 
-        // 1️⃣ Fetch techie
         Techie techie = getTechieById(id);
 
-        // 2️⃣ Prepare prompt
         String prompt = """
                 A student has the following skills and interests.
 
@@ -119,7 +72,6 @@ public class TechieService {
                 Keep it concise and practical.
                 """.formatted(techie.getSkills(), techie.getInterests());
 
-        // 3️⃣ Request body
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", model);
         requestBody.put("messages", List.of(
@@ -127,7 +79,6 @@ public class TechieService {
         ));
         requestBody.put("temperature", 0.7);
 
-        // 4️⃣ Headers
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(apiKey);
@@ -135,7 +86,6 @@ public class TechieService {
         HttpEntity<Map<String, Object>> entity =
                 new HttpEntity<>(requestBody, headers);
 
-        // 5️⃣ Call OpenAI
         ResponseEntity<Map> response = restTemplate.exchange(
                 "https://api.openai.com/v1/chat/completions",
                 HttpMethod.POST,
@@ -143,7 +93,6 @@ public class TechieService {
                 Map.class
         );
 
-        // 6️⃣ Extract response
         List<Map<String, Object>> choices =
                 (List<Map<String, Object>>) response.getBody().get("choices");
 
@@ -152,4 +101,40 @@ public class TechieService {
 
         return message.get("content").toString();
     }
+
+    //sample request body :
+    //  {
+    //     "model": "${openai.model}",
+    //     "messages": [
+    //       {
+    //         "role": "user",
+    //         "content": "A student has the following skills and interests.\n\nSkills: {techie.getSkills()}\nInterests: {techie.getInterests()}\n\nBased on this, suggest:\n1. Future skills to learn\n2. Career direction\n3. Technologies to focus on\n\nKeep it concise and practical."
+    //       }
+    //     ],
+    //     "temperature": 0.7
+    //   }
+
+
+    // sample response body :
+    // {
+    //     "id": "chatcmpl-abc123...",
+    //     "object": "chat.completion",
+    //     "created": 1677858242,
+    //     "model": "gpt-3.5-turbo-0301",
+    //     "choices": [
+    //       {
+    //         "index": 0,
+    //         "message": {
+    //           "role": "assistant",
+    //           "content": "Based on the student's skills in Java and web development with interests in AI and machine learning, here are my suggestions:\n\n1. Future skills to learn: Python, TensorFlow/PyTorch, cloud computing (AWS/Azure)\n2. Career direction: Machine Learning Engineer or AI Developer\n3. Technologies to focus on: Python ecosystem, deep learning frameworks, cloud platforms"
+    //         },
+    //         "finish_reason": "stop"
+    //       }
+    //     ],
+    //     "usage": {
+    //       "prompt_tokens": 85,
+    //       "completion_tokens": 92,
+    //       "total_tokens": 177
+    //     }
+    //   }
 }
